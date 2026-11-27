@@ -19,10 +19,15 @@
         <main class="glass-card">
             <header>
                 <h1>Focus Time</h1>
+                <div class="header-actions">
+                <button id="ai-btn" class="icon-btn" aria-label="AI 任務拆解" title="AI 任務拆解（Claude / Gemini）">✨</button>
                 <button id="settings-btn" class="icon-btn" aria-label="Settings">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </button>
+                </div>
             </header>
+
+            <p id="current-task" class="current-task"></p>
 
             <nav class="mode-selector">
                 <button class="mode-btn active" data-mode="pomodoro">Pomodoro</button>
@@ -84,12 +89,51 @@
                 <label for="long-break-time">Long Break (minutes)</label>
                 <input type="number" id="long-break-time" min="1" max="60" value="15">
             </div>
+            <h3 class="settings-subtitle">AI（Claude / Gemini）</h3>
+            <div class="setting-group stacked">
+                <label for="claude-key">Claude API key</label>
+                <input type="password" id="claude-key" placeholder="sk-ant-..." autocomplete="off">
+            </div>
+            <div class="setting-group stacked">
+                <label for="claude-model">Claude 模型</label>
+                <input type="text" id="claude-model" placeholder="claude-opus-5-5">
+            </div>
+            <div class="setting-group stacked">
+                <label for="gemini-key">Gemini API key</label>
+                <input type="password" id="gemini-key" placeholder="AIza..." autocomplete="off">
+            </div>
+            <div class="setting-group stacked">
+                <label for="gemini-model">Gemini 模型</label>
+                <input type="text" id="gemini-model" placeholder="gemini-3.8-flash">
+            </div>
+            <p class="settings-note">金鑰只存在這台瀏覽器（localStorage），直接從瀏覽器呼叫 API。請勿在公開網站上使用你的金鑰。</p>
             <div class="modal-actions">
                 <button id="close-settings-btn" class="control-btn secondary">Cancel</button>
                 <button id="save-settings-btn" class="control-btn primary">Save</button>
             </div>
         </div>
     </div>
+    <!-- AI Modal -->
+    <div id="ai-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-card ai-modal">
+            <h2>✨ AI 任務拆解</h2>
+            <textarea id="ai-task" rows="3" placeholder="你想完成什麼？例如：寫完期末報告的文獻回顧"></textarea>
+            <div class="setting-group">
+                <label for="ai-provider">使用模型</label>
+                <select id="ai-provider">
+                    <option value="both">Claude + Gemini 並排</option>
+                    <option value="claude">只用 Claude</option>
+                    <option value="gemini">只用 Gemini</option>
+                </select>
+            </div>
+            <div id="ai-results" class="ai-results"></div>
+            <div class="modal-actions">
+                <button id="ai-close-btn" class="control-btn secondary">關閉</button>
+                <button id="ai-run-btn" class="control-btn primary">產生計畫</button>
+            </div>
+        </div>
+    </div>
     <script src="app.js"></script>
+    <script src="ai.js"></script>
 </body>
 </html>
