@@ -59,10 +59,47 @@ function saveSettings(s) {
 
 // ---------- Providers ----------
 
+const TIMEOUT_MS = 60_000;
+
+// 從 CDN 載入 SDK；失敗時給清楚的訊息，跟金鑰錯誤分開
+async function loadSdk(name) {
+    try {
+        return await import(SDK_URLS[name]);
+    } catch {
+        throw new Error('無法載入 AI 套件，請檢查網路連線（或是否有擋 cdn.jsdelivr.net）');
+    }
+}
+
+// 超過時間就放棄，避免按鈕一直卡住
+function withTimeout(promise, label) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} 超過 ${TIMEOUT_MS / 1000} 秒沒有回應，請稍後再試`)), TIMEOUT_MS);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// 把模型回傳的 JSON 整理成安全的格式，避免顯示 undefined
+function normalizePlan(raw) {
+    const steps = (Array.isArray(raw?.steps) ? raw.steps : [])
+        .filter(step => typeof step?.title === 'string' && step.title.trim())
+        .map(step => ({
+            title: step.title.trim(),
+            pomodoros: Number.isInteger(step.pomodoros) && step.pomodoros > 0 ? step.pomodoros : 1
+        }));
+    if (!steps.length) throw new Error('AI 回傳的格式不正確，請再試一次');
+    return { steps, tip: typeof raw.tip === 'string' ? raw.tip.trim() : '' };
+}
+
 async function askClaude(task, s) {
     if (!s.claudeKey) throw new Error('尚未設定 Claude API key');
-    const { default: Anthropic } = await import(SDK_URLS.anthropic);
-    const client = new Anthropic({ apiKey: s.claudeKey, dangerouslyAllowBrowser: true });
+    const { default: Anthropic } = await loadSdk('anthropic');
+    const client = new Anthropic({
+        apiKey: s.claudeKey,
+        dangerouslyAllowBrowser: true,
+        timeout: TIMEOUT_MS,
+        maxRetries: 1
+    });
     const res = await client.beta.messages.create({
         model: s.claudeModel,
         max_tokens: 16000,
@@ -84,7 +121,7 @@ async function askClaude(task, s) {
 
 async function askGemini(task, s) {
     if (!s.geminiKey) throw new Error('尚未設定 Gemini API key');
-    const { GoogleGenAI } = await import(SDK_URLS.genai);
+    const { GoogleGenAI } = await loadSdk('genai');
     const ai = new GoogleGenAI({ apiKey: s.geminiKey });
     const res = await ai.models.generateContent({
         model: s.geminiModel,
@@ -92,7 +129,8 @@ async function askGemini(task, s) {
         config: {
             systemInstruction: SYSTEM_PROMPT,
             responseMimeType: 'application/json',
-            responseJsonSchema: SCHEMA
+            responseJsonSchema: SCHEMA,
+            abortSignal: AbortSignal.timeout(TIMEOUT_MS)
         }
     });
     return JSON.parse(res.text);
@@ -141,7 +179,8 @@ aiRunBtn.addEventListener('click', async () => {
         col.innerHTML = `<h3>${PROVIDERS[id].label}</h3><p class="ai-status">思考中…</p>`;
         aiResults.appendChild(col);
         try {
-            renderPlan(col, await PROVIDERS[id].run(task, s));
+            const raw = await withTimeout(PROVIDERS[id].run(task, s), PROVIDERS[id].label);
+            renderPlan(col, normalizePlan(raw));
         } catch (err) {
             col.querySelector('.ai-status').textContent = `錯誤：${err.message}`;
             col.querySelector('.ai-status').classList.add('error');
@@ -153,7 +192,7 @@ aiRunBtn.addEventListener('click', async () => {
 function renderPlan(col, plan) {
     col.querySelector('.ai-status').remove();
     const ol = document.createElement('ol');
-    for (const step of plan.steps || []) {
+    for (const step of plan.steps) {
         const li = document.createElement('li');
         const btn = document.createElement('button');
         btn.className = 'ai-step';
